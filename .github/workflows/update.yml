@@ -1,0 +1,25 @@
+name: Gegevens bijwerken
+on:
+  schedule:
+    - cron: "*/15 * * * *"
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Gegevens ophalen bij Vercel
+        run: |
+          curl -fsS --retry 3 "https://ajaxtv-data.vercel.app/api/data" -o new.json
+          jq -e '.bijgewerkt' new.json > /dev/null
+          jq 'del(.bijgewerkt)' new.json > a.json
+          (jq 'del(.bijgewerkt)' data.json 2>/dev/null || echo '{}') > b.json
+          if cmp -s a.json b.json; then echo "Geen wijzigingen"; rm new.json a.json b.json; exit 0; fi
+          mv new.json data.json; rm a.json b.json
+          git config user.name "Ajax TV bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json
+          git commit -m "Gegevens bijgewerkt"
+          git push
